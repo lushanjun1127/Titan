@@ -218,3 +218,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local runtime data and assistant state
+.workbuddy-ai/
+*.db
+*.db-*
+/1_底料入库/
+/2_剔除名单/
+/3_待触达库/
+/4_残次品库/
+/5_精准发货/
+/_验收报告.png
