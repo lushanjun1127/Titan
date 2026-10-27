@@ -26,8 +26,23 @@ QQuickStyle.setStyle("Basic")
 
 # 1. 强行把 PySide6 的 QML / 插件路径喂给 Qt（应对独立打包版 Python 挡住系统 DLL）
 _PYSIDE_DIR = os.path.dirname(PySide6.__file__)
-os.environ["QML2_IMPORT_PATH"] = os.path.join(_PYSIDE_DIR, "qml")
-os.environ["QT_PLUGIN_PATH"] = os.path.join(_PYSIDE_DIR, "plugins")
+# 兼容不同 PySide6 版本的目录布局：优先 <PySide6>/qml，回退 <PySide6>/Qt/qml
+# （新版 pip 包把 qml/plugins 放在 Qt/ 子目录下，写死旧路径会导致 QML 模块找不到、界面空白）
+
+
+def _pick_dir(*candidates: str) -> str:
+    for c in candidates:
+        if os.path.isdir(c):
+            return c
+    return candidates[0]
+
+
+_QML_DIR = _pick_dir(os.path.join(_PYSIDE_DIR, "qml"),
+                     os.path.join(_PYSIDE_DIR, "Qt", "qml"))
+_PLUGIN_DIR = _pick_dir(os.path.join(_PYSIDE_DIR, "plugins"),
+                        os.path.join(_PYSIDE_DIR, "Qt", "plugins"))
+os.environ["QML2_IMPORT_PATH"] = _QML_DIR
+os.environ["QT_PLUGIN_PATH"] = _PLUGIN_DIR
 os.environ["PATH"] = _PYSIDE_DIR + os.pathsep + os.environ.get("PATH", "")
 # 关键兜底：把 PySide6 根目录加入 Windows DLL 搜索目录。
 # 否则 QtQuick.Controls 的 Basic 样式插件(qtquickcontrols2basicstyleplugin.dll)
