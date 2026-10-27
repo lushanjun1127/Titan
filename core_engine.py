@@ -30,18 +30,33 @@ import pandas as pd
 
 # --------------------------------------------------------------------------- #
 # 1. 路径配置
+#    数据根目录解析优先级：环境变量 TITAN_ROOT > D:/Titan（存在则用）> 脚本同目录。
+#    保证在 Windows 部署机与 Linux/macOS 上都能开箱即跑；GUI 里仍可为每次运行
+#    单独选择输入/黑名单/输出目录（run_engine 参数）。
 # --------------------------------------------------------------------------- #
-INPUT_FOLDER = Path("D:/Titan/1_底料入库")
-BLACKLIST_FOLDER = Path("D:/Titan/2_剔除名单")
-OUTPUT_FOLDER = Path("D:/Titan/3_待触达库")
-ERROR_FOLDER = Path("D:/Titan/4_残次品库")
-AREA_CODE_CSV = Path("D:/Titan/area_codes.csv")
+def _resolve_titan_root() -> Path:
+    env = os.environ.get("TITAN_ROOT", "").strip()
+    if env:
+        return Path(env)
+    d_root = Path("D:/Titan")
+    if d_root.exists():
+        return d_root
+    return Path(__file__).resolve().parent
+
+
+TITAN_ROOT = _resolve_titan_root()
+
+INPUT_FOLDER = TITAN_ROOT / "1_底料入库"
+BLACKLIST_FOLDER = TITAN_ROOT / "2_剔除名单"
+OUTPUT_FOLDER = TITAN_ROOT / "3_待触达库"
+ERROR_FOLDER = TITAN_ROOT / "4_残次品库"
+AREA_CODE_CSV = TITAN_ROOT / "area_codes.csv"
 
 # 同目录官方区号库回退（schema 与 area_codes.csv 一致，文件缺失时启用）
-AREA_CODE_FALLBACK = Path("D:/Titan/npa_report.csv")
+AREA_CODE_FALLBACK = TITAN_ROOT / "npa_report.csv"
 
 # 全局已触达总库（跨运行持久化去重）：SQLite，主键索引查询极快，支持亿级
-SENT_DB = Path("D:/Titan/sent_database.db")
+SENT_DB = TITAN_ROOT / "sent_database.db"
 SENT_FLUSH_THRESHOLD = 50_000   # 新号码缓冲达到此值即批量落库，控制内存占用
 CHECK_EXISTING_OUTPUT = True    # 启动前扫描历史产出，内容相同则跳过（防重复文件）
 
@@ -437,7 +452,7 @@ def flush_category(key: tuple) -> None:
     if CHECK_EXISTING_OUTPUT:
         fp = content_fingerprint(rows)
         if fp and fp in existing_output_fps:
-            stats["rows_dupe_file"] += len(rows)
+            stats["rows_dupe_file"] += len(rows)   # 本运行内被跳过的重复行数（不计入 rows_written）
             st, ag, gd = key
             print(f"[SKIP] 内容指纹已存在，跳过重复批次: {st}/{ag}_{gd} "
                   f"({len(rows)} 行)")
